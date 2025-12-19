@@ -8,6 +8,7 @@ library("lubridate")
 library("writexl")
 library("shiny")
 library("shinydashboard")
+
 #UI creation
 ui = dashboardPage(
     dashboardHeader(title = "Discharge analysis dashboard"),
@@ -22,17 +23,17 @@ ui = dashboardPage(
     dashboardBody(
         tabItems(
            tabItem(tabName = "tab1", fluidRow(valueBoxOutput("monthlymin",width = 4),valueBoxOutput("monthlymean",width = 4),valueBoxOutput("monthlymax",width = 4)),
-           fluidRow(box(width = 7,title = "Monthly discharge",plotOutput("monthly",height = 40),actionButton("down1","Download plot",class = "btn-primary")),
-           box(width = 5,title = "Monthly peak discharge",plotOutput("monthly_peak",height = 40),actionButton("down2","Download plot",class = "btn-primary")),
-           box(width = 4,sliderInput("month_size","Select sample size :",min = 1,max = 12,value = 12)))
+           fluidRow(box(width = 7,title = "Monthly discharge",plotOutput("monthly",height = 40),downloadButton("down1","Download plot")),
+           box(width = 5,title = "Monthly peak discharge",plotOutput("monthly_peak",height = 40),downloadButton("down2","Download plot")),
+           box(width = 4,title = "Control",sliderInput("month_size","Select sample size :",min = 1,max = 12,value = 12)))
            ),
            tabItem(tabName = "tab2",fluidRow(valueBoxOutput("dailylymin",width = 4),valueBoxOutput("daylymean",width = 4),valueBoxOutput("dailylymax",width = 4)),
-           fluidRow(box(width = 7,title = "daily discharge",plotOutput("daily",height = 40),actionButton("down3","Download plot",class = "btn-primary")),
-           box(width = 5,title = "daily peak discharge",plotOutput("daily_peak",height = 40),actionButton("down4","Download plot",class = "btn-primary")),
+           fluidRow(box(width = 7,title = "daily discharge",plotOutput("daily",height = 40),downloadButton("down3","Download plot")),
+           box(width = 5,title = "daily peak discharge",plotOutput("daily_peak",height = 40),downloadButton("down4","Download plot")),
            box(width = 4,sliderInput("day_size","Select sample size :",min = 1,max = 31,value = 15)))
            ),
            tabItem(tabName = "tab3",fluidRow(valueBoxOutput("dischargemin",width = 40),valueBoxOutput("dischargemean",width = 4),valueBoxOutput("dischargemax",width = 4)),
-           fluidRow(box(width = 7,title = "Hydrogramm",plotOutput("hydro"),actionButton("down5","Download plot",class = "btn-primary")),
+           fluidRow(box(width = 7,title = "Hydrogramm",plotOutput("hydro"),downloadButton("down5","Download plot")),
            box(width = 5,dateRangeInput("period","Select datetime size :",format = "yyyy-mm-dd",start = Sys.Date() - 30,end = Sys.Date()),
            actionButton("refresh","Refresh date",class = "btn - success")),
            infoBoxOutput("peak",width = 4),
@@ -43,6 +44,49 @@ ui = dashboardPage(
    
 
 server = function(input,output){
+sheets = reactive({sheets = c("Janv_02","Fév_02","Mars_02","Avril_02","Mai_02","Juin_02","Juil_02","Août_02","Sept_02","Oct_02","Nov_02","Déc_02")
+return(sheets)})
+data_min_month = reactive({
 
+min_discharge = c(rep(0,12))
+for (i in 1:length(sheets())){
+data = read_excel(input$dataset$datapath,sheet = sheets()[i])
+selected = data%>%
+group_by(month(Date))%>%
+summarize(Débit = min(Débit))
+min_discharge[i] = selected$Débit}
+return(min_discharge)})
+output$monthlymin = renderValueBox({
+req(input$dataset)
+valueBox(width = 3,paste("Min for ",input$month_size," months"),mean(data_min_month()[1:input$month_size]),color = "green")
+})
+data_mean_month = reactive({
+
+mean_discharge = c(rep(0,12))
+for (i in 1:length(sheets())){
+data = read_excel(input$dataset$datapath,sheet = sheets()[i])
+selected = data%>%
+group_by(month(Date))%>%
+summarize(Débit = mean(Débit))
+mean_discharge[i] = selected$Débit}
+return(mean_discharge)})
+output$monthlymean = renderValueBox({
+req(input$dataset)
+valueBox(width = 5,paste("Mean for",input$month_size," months"),mean(data_mean_month()[1:input$month_size]),)
+})
+data_max_month = reactive({
+
+max_discharge = c(rep(0,12))
+for (i in 1:length(sheets())){
+data = read_excel(input$dataset$datapath,sheet = sheets()[i])
+selected = data%>%
+group_by(month(Date))%>%
+summarize(Débit = max(Débit))
+max_discharge[i] = selected$Débit}
+return(max_discharge)})
+output$monthlymax = renderValueBox({
+req(input$dataset)
+valueBox(width = 4,paste("Max for ",input$month_size," months"),mean(data_max_month()[1:input$month_size]),color = "red")
+})
 }
 shinyApp(ui,server)
