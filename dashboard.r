@@ -5,6 +5,7 @@ library("dplyr")
 library("ggplot2")
 library("readxl")
 library("lubridate")
+
  #UI creation  
  ui = dashboardPage(
      dashboardHeader(title = "Discharge analysis dashboard"),
@@ -19,8 +20,8 @@ library("lubridate")
      dashboardBody(
          tabItems(
             tabItem(tabName = "tab1", fluidRow(valueBoxOutput("monthlymin",width = 4),valueBoxOutput("monthlymean",width = 4),valueBoxOutput("monthlymax",width = 4)),
-          fluidRow(box(width = 7,title = "Monthly discharge",plotOutput("monthly",height = 40),downloadButton("down1","Download plot")),
-           box(width = 5,title = "Monthly peak discharge",plotOutput("monthly_peak",height = 40),downloadButton("down2","Download plot")),
+          fluidRow(box(width = 7,title = "Monthly discharge",plotOutput("monthly",height = 200),downloadButton("down1","Download plot")),
+           box(width = 5,title = "Monthly peak discharge",plotOutput("monthly_peak",height = 200),downloadButton("down2","Download plot")),
            box(width = 4,sliderInput("month_size","Select sample size :",min = 1,max = 12,value = 12)))),
           tabItem(tabName = "tab2",fluidRow(valueBoxOutput("dailylymin",width = 4),valueBoxOutput("daylymean",width = 4),valueBoxOutput("dailylymax",width = 4)),
          fluidRow(box(width = 7,title = "daily discharge",plotOutput("daily",height = 40),downloadButton("down3","Download plot")),
@@ -78,7 +79,50 @@ max_discharge[i] = selected$Débit}
 return(max_discharge)})
 output$monthlymax = renderValueBox({
 req(input$dataset)
-valueBox(width = 4,paste("Max for ",input$month_size," months"),mean(data_max_month()[1:input$month_size]),color = "red")
+valueBox(width = 4,paste("Max for ",input$month_size," months"),mean(data_max_month()[1:input$month_size]),color = "red")})
+datamonth = reactive({
+data = data.frame(Date = c("Jan","Feb","March","Apr","May","Jun","July","Aug","Sep","Oct","Nov","Dec"),Values = data_mean_month())
+data$Date = factor(data$Date,levels = data$Date)
+data2 = data.frame(Date = data$Date[1:input$month_size],Values = data$Values[1:input$month_size])
+return(data2)
 })
+month_plot = reactive({
+
+    ggplot(datamonth())+
+    geom_col(mapping = aes(x = Date,y = Values))+
+    theme_light()+
+    labs(title = "Discharge per month evolution",x = "Months",y = "Discharge")
+})
+output$monthly = renderPlot({
+    req(input$dataset)
+    req(input$month_size)
+    month_plot()
+})
+data_peak_month = reactive({
+data = data.frame(Date = c("Jan","Feb","March","Apr","May","Jun","July","Aug","Sep","Oct","Nov","Dec"),Values = data_max_month())
+data$Date = factor(data$Date,levels = data$Date)
+data2 = data.frame(Date = data$Date[1:input$month_size],Values = data$Values[1:input$month_size])
+return(data2)
+})
+peak_month_plot = reactive({
+ ggplot(data_peak_month())+
+    geom_col(mapping = aes(x = Date,y = Values))+
+    theme_light()+
+    labs(title = "Peak Discharge per month evolution",x = "Months",y = "Peak Discharge")
+})
+output$monthly_peak = renderPlot({
+    req(input$dataset)
+    req(input$month_size)
+    peak_month_plot()
+})
+output$down1 = downloadHandler(
+    filename = function(){
+        "plot.png"},
+    content = function(file){
+        ggsave(filename = file,width = 700,height = 500,plot = peak_month_plot())
+
+    }
+)
+
  }
  shinyApp(ui,server)
