@@ -24,12 +24,15 @@ library("lubridate")
            box(width = 5,title = "Monthly peak discharge",plotOutput("monthly_peak",height = 200),downloadButton("down2","Download plot")),
            box(width = 4,sliderInput("month_size","Select sample size :",min = 1,max = 12,value = 12)),
            box(width = 4,selectInput("color","Select color",choices = c("#054726ff","#068096ff","#a30707ff"))))),
-          tabItem(tabName = "tab2",fluidRow(valueBoxOutput("dailylymin",width = 4),valueBoxOutput("daylymean",width = 4),valueBoxOutput("dailylymax",width = 4)),
-         fluidRow(box(width = 7,title = "daily discharge",plotOutput("daily",height = 40),downloadButton("down3","Download plot")),
-         box(width = 5,title = "daily peak discharge",plotOutput("daily_peak",height = 40),downloadButton("down4","Download plot")),
-            box(width = 4,sliderInput("day_size","Select sample size :",min = 1,max = 31,value = 15)))
+          tabItem(tabName = "tab2",fluidRow(valueBoxOutput("dailymin",width = 4),valueBoxOutput("daylymean",width = 4),valueBoxOutput("dailymax",width = 4)),
+         fluidRow(box(width = 7,title = "daily discharge",plotOutput("daily",height = 200),downloadButton("down3","Download plot")),
+         box(width = 5,title = "Month",selectInput("selected_month","Select the sheet name of the month :",choices = c("Janv_02","Fév_02","Mars_02","Avril_02","Mai_02","Juin_02","Juil_02","Août_02","Sept_02","Oct_02","Nov_02","Déc_02"))),
+         box(title = "Color",width = 4,selectInput("color2","Select color",choices = c("#054726ff","#068096ff","#a30707ff") )),
+         ),
+         #fluidRow(box(width = 5,title = "daily peak discharge",plotOutput("daily_peak",height = 200),downloadButton("down4","Download plot"))),   
+        
             ),
-            tabItem(tabName = "tab3",fluidRow(valueBoxOutput("dischargemin",width = 40),valueBoxOutput("dischargemean",width = 4),valueBoxOutput("dischargemax",width = 4)),
+            tabItem(tabName = "tab3",fluidRow(valueBoxOutput("dischargemin",width = 4),valueBoxOutput("dischargemean",width = 4),valueBoxOutput("dischargemax",width = 4)),
            fluidRow(box(width = 7,title = "Hydrogramm",plotOutput("hydro"),downloadButton("down5","Download plot")),
             box(width = 5,dateRangeInput("period","Select datetime size :",format = "yyyy-mm-dd",start = Sys.Date() - 30,end = Sys.Date()),
             actionButton("refresh","Refresh date",class = "btn - success")),
@@ -52,7 +55,7 @@ min_discharge[i] = selected$Débit}
 return(min_discharge)})
 output$monthlymin = renderValueBox({
 req(input$dataset)
-valueBox(width = 3,paste("Min for ",input$month_size," months"),mean(data_min_month()[1:input$month_size]),color = "green")
+valueBox(width = 3,subtitle = paste("Min for ",input$month_size," months"),value = mean(data_min_month()[1:input$month_size]),color = "green",icon = icon("table"))
 })
 data_mean_month = reactive({
 
@@ -66,7 +69,7 @@ mean_discharge[i] = selected$Débit}
 return(mean_discharge)})
 output$monthlymean = renderValueBox({
 req(input$dataset)
-valueBox(width = 5,paste("Mean for",input$month_size," months"),mean(data_mean_month()[1:input$month_size]),)
+valueBox(width = 5,subtitle = paste("Mean for",input$month_size," months"),value = mean(data_mean_month()[1:input$month_size]),icon = icon("table"))
 })
 data_max_month = reactive({
  
@@ -80,7 +83,7 @@ max_discharge[i] = selected$Débit}
 return(max_discharge)})
 output$monthlymax = renderValueBox({
 req(input$dataset)
-valueBox(width = 4,paste("Max for ",input$month_size," months"),mean(data_max_month()[1:input$month_size]),color = "red")})
+valueBox(width = 4,subtitle = paste("Max for ",input$month_size," months"),value = mean(data_max_month()[1:input$month_size]),color = "red",icon = icon("table"))})
 months = reactive({
     data = c("Jan","Feb","March","Apr","May","Jun","July","Aug","Sep","Oct","Nov","Dec")
 })
@@ -128,6 +131,52 @@ output$down1 = downloadHandler(
 
     }
 )
+day_month = reactive({
+    data = read_excel(input$dataset$datapath,sheet = input$selected_month)
+    data = data%>%
+    group_by(day(Date))%>%
+    summarize(Debit_mean = mean(Débit),Debit_max = max(Débit),Debit_min = min(Débit))
+    names(data)[names(data) == "day(Date)"] = "Day"
+    return(data)
+})
 
- }
+output$daylymean = renderValueBox({
+    req(input$dataset)
+    valueBox(width = 4,subtitle = "Mean discharge of the month",value = mean(day_month()$Debit_mean),icon = icon("table"))
+})
+daily_plot = reactive({
+    ggplot(data = day_month())+
+    geom_col(mapping = aes(x = Day,y = Debit_mean),fill = input$color2)+
+    labs(title = "discharge per day for the month",x = "Day",y = "Month")+
+    theme_light()
+})
+output$daily = renderPlot({
+    req(input$dataset)
+    req(input$color2)
+    daily_plot()
+})
+#daily_peak_plot = reactive({
+#ggplot(data = day_month())+
+    #geom_col(mapping = aes(x = Day,y = Debit_max),fill = input$color2)+
+    #labs(title = "Peak discharge per day for the month",x = "Day",y = "Month")+
+    #theme_light()
+#})
+#output$daily_peak = renderPlot({
+    #daily_peak_plot()
+#})
+dmin = reactive({
+    day_month()%>%
+    filter(Debit_min == min(Debit_min))
+})
+dmax = reactive({
+    day_month()%>%
+    filter(Debit_max == max(Debit_max))
+})
+output$dailymin = renderValueBox({
+    valueBox(width = 4,subtitle = paste("Min discharge located on day ",dmin()$Day),value = dmin()$Debit_min,icon = icon("table"),color = "green")
+})
+output$dailymax = renderValueBox({
+    valueBox(width = 4,subtitle = paste("Max discharge located on day",dmax()$Day),value = dmax()$Debit_max,icon = icon("table"),color = "red")
+})
+}
  shinyApp(ui,server)
