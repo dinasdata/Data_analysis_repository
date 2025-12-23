@@ -32,8 +32,9 @@ library("lubridate")
             ),
             tabItem(tabName = "tab3",fluidRow(valueBoxOutput("dischargemin",width = 4),valueBoxOutput("dischargemean",width = 4),valueBoxOutput("dischargemax",width = 4)),
            fluidRow(box(width = 7,title = "Hydrogramm",plotOutput("hydro"),downloadButton("down5","Download plot")),
-            box(width = 5,dateRangeInput("period","Select datetime size :",format = "yyyy-mm-dd",start = Sys.Date() - 30,end = Sys.Date()),
-            actionButton("refresh","Refresh date",class = "btn - success")),
+            box(width = 5,dateRangeInput("period","Select datetime size :",format = "yyyy-mm-dd ",start = Sys.Date() - 30,end = Sys.Date()),
+            actionButton("refresh","Refresh date")),
+            box(width = 5,selectInput("color3","Select color",choices = c("#054726ff","#068096ff","#a30707ff")))
             
          
      )
@@ -168,23 +169,51 @@ output$dailymax = renderValueBox({
     valueBox(width = 4,subtitle = paste("Max discharge located on day ",as.integer(mean(dmax()$Day))),value = mean(dmax()$Debit_max),icon = icon("table"),color = "red")
 })
 hourly_data = reactive({
-    req(input$period)
+    
 df0 = data.frame(Date = ymd_hms("2001-12-31 23:59:59"),Hauteur = c(0),Débit = c(0))
 for (i in 1:length(sheets())){
 df = read_excel(input$dataset$datapath,sheet = sheets()[i])
 df0 = rbind(df0,df)  }
-df0 = df0%>%
-filter(Date <= input$period[1] & Date >= input$period[2])
 return(df0)
+})
+hourly_filtered = reactive({
+    req(input$period)
+    d = hourly_data()%>%
+    filter(Date <= input$period[2] & Date >= input$period[1])
+    return(d)
 })
 hour_plot = reactive({
     req(input$period)
     req(input$dataset)
-    ggplot(data = hourly_data())+
-    geom_line(mapping = aes(x = Date,y = Débit))+
-    geom_point(mapping = aes(x = Date,y = Débit))+
+    req(input$color3)
+    ggplot(data = hourly_filtered())+
+    geom_line(mapping = aes(x = Date,y = Débit),color = input$color2)+
+    geom_point(mapping = aes(x = Date,y = Débit),fill = input$color3)+
     labs(title = "Hydrogram",x = "Date",y = "Discharge")+
     theme_light()
+})
+observeEvent(input$refresh,{
+    updateDateRangeInput(inputId = "period",start = hourly_data()$Date[2],end = hourly_data()$Date[31],label = "Select datetime size:")
+})
+output$hydro = renderPlot({
+    hour_plot()
+})
+dismin = reactive({
+    hourly_filtered()%>%
+    filter(Débit == min(Débit))
+})
+dismax = reactive({
+    hourly_filtered()%>%
+    filter(Débit == max(Débit))
+})
+output$dischargemin = renderValueBox({
+    valueBox(width = 4,subtitle = paste("Min discharge situed at :",mean(dismin()$Date)),value = min(hourly_filtered()$Débit),color = "green",icon = icon("table"))
+})
+output$dischargemean = renderValueBox({
+    valueBox(width = 4,subtitle = "Mean discharge of the period :",value = mean(hourly_filtered()$Débit),icon = icon("table"))
+})
+output$dischargemax = renderValueBox({
+    valueBox(width = 4,subtitle = paste("Max discharge situed at : ",mean(dismax()$Date)),value = mean(hourly_filtered()$Débit),color = "red",icon = icon("table"))
 })
 }
  shinyApp(ui,server)
