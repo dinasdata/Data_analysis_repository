@@ -34,11 +34,10 @@ library("lubridate")
            fluidRow(box(width = 7,title = "Hydrogramm",plotOutput("hydro"),downloadButton("down5","Download plot")),
             box(width = 5,dateRangeInput("period","Select datetime size :",format = "yyyy-mm-dd",start = Sys.Date() - 30,end = Sys.Date()),
             actionButton("refresh","Refresh date",class = "btn - success")),
-            box(title = "Color",width = 4,selectInput("color2","Select color",choices = c("#054726ff","#068096ff","#a30707ff"), )),
-            infoBoxOutput("peak",width = 4),)))
+            
          
      )
-     )
+     ))))
 server = function(input,output){
 sheets = reactive({sheets = c("Janv_02","Fév_02","Mars_02","Avril_02","Mai_02","Juin_02","Juil_02","Août_02","Sept_02","Oct_02","Nov_02","Déc_02")
 return(sheets)})
@@ -169,14 +168,23 @@ output$dailymax = renderValueBox({
     valueBox(width = 4,subtitle = paste("Max discharge located on day ",as.integer(mean(dmax()$Day))),value = mean(dmax()$Debit_max),icon = icon("table"),color = "red")
 })
 hourly_data = reactive({
+    req(input$period)
 df0 = data.frame(Date = ymd_hms("2001-12-31 23:59:59"),Hauteur = c(0),Débit = c(0))
 for (i in 1:length(sheets())){
 df = read_excel(input$dataset$datapath,sheet = sheets()[i])
 df0 = rbind(df0,df)  }
 df0 = df0%>%
-filter(Date <= input$period$star)
+filter(Date <= input$period[1] & Date >= input$period[2])
 return(df0)
 })
-
+hour_plot = reactive({
+    req(input$period)
+    req(input$dataset)
+    ggplot(data = hourly_data())+
+    geom_line(mapping = aes(x = Date,y = Débit))+
+    geom_point(mapping = aes(x = Date,y = Débit))+
+    labs(title = "Hydrogram",x = "Date",y = "Discharge")+
+    theme_light()
+})
 }
  shinyApp(ui,server)
