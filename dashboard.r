@@ -123,11 +123,23 @@ output$monthly_peak = renderPlot({
     peak_month_plot()
 })
 output$down1 = downloadHandler(
-    filename = function(){
-        "plot.png"},
-    content = function(file){
-        ggsave(filename = file,width = 700,height = 500,plot = peak_month_plot())
 
+    filename = function(){
+        "monthlyplot.png"
+    },
+    content = function(file){
+        ggsave(filename = file,plot = month_plot())
+       
+    }
+)
+output$down2 = downloadHandler(
+
+    filename = function(){
+        "monthly_peak.png"
+    },
+    content = function(file){
+        ggsave(filename = file,plot = peak_month_plot())
+       
     }
 )
 day_month = reactive({
@@ -198,6 +210,26 @@ observeEvent(input$refresh,{
 output$hydro = renderPlot({
     hour_plot()
 })
+output$down3 = downloadHandler(
+
+    filename = function(){
+        "daily.png"
+    },
+    content = function(file){
+        ggsave(filename = file,plot = daily_plot())
+       
+    }
+)
+output$down5 = downloadHandler(
+
+    filename = function(){
+        "hourly.png"
+    },
+    content = function(file){
+        ggsave(filename = file,plot = hour_plot())
+       
+    }
+)
 dismin = reactive({
     hourly_filtered()%>%
     filter(Débit == min(Débit))
